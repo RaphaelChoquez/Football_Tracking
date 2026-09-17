@@ -1,9 +1,17 @@
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpClient();
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyMethod()
+              .AllowAnyHeader());
+});
 
 var app = builder.Build();
 
@@ -15,30 +23,22 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+const string API_KEY = "PUT_YOUR_KEY_HERE";
+const string BASE_URL = "https://api.football-data.org/v4";
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/api/matches", async (IHttpClientFactory httpClientFactory) =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var client = httpClientFactory.CreateClient();
+    client.DefaultRequestHeaders.Add("X-Auth-Token", API_KEY);
+
+    var response = await client.GetAsync($"{BASE_URL}/competitions/PL/matches?status=SCHEDULED");
+    var json = await response.Content.ReadAsStringAsync();
+
+    return Results.Content(json, "application/json");
 })
-.WithName("GetWeatherForecast")
+.WithName("GetMatches")
 .WithOpenApi();
 
 app.Run();
-
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
