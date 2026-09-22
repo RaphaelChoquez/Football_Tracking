@@ -1,10 +1,24 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// 1. Enregistrer le support des contrôleurs (OBLIGATOIRE avant builder.Build())
+builder.Services.AddControllers();
+
+// 2. Enregistrer Swagger et les services de base
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHttpClient();
 
+// 3. Configurer le HttpClient "FootballData" avec la clé API pour les contrôleurs
+var apiKey = builder.Configuration["FootballData:ApiKey"];
+builder.Services.AddHttpClient("FootballData", client =>
+{
+    client.BaseAddress = new Uri("https://api.football-data.org/");
+    if (!string.IsNullOrEmpty(apiKey))
+    {
+        client.DefaultRequestHeaders.Add("X-Auth-Token", apiKey);
+    }
+});
+
+// 4. Configuration de CORS pour le frontend Vite
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -15,30 +29,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure le pipeline HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseCors();
 
-var apiKey = builder.Configuration["FootballData:ApiKey"]; 
-const string BASE_URL = "https://api.football-data.org/v4";
-
-app.MapGet("/api/matches", async (IHttpClientFactory httpClientFactory) =>
-{
-    var client = httpClientFactory.CreateClient();
-    client.DefaultRequestHeaders.Add("X-Auth-Token", apiKey);
-
-    var response = await client.GetAsync($"{BASE_URL}/competitions/PL/matches?status=SCHEDULED");
-    var json = await response.Content.ReadAsStringAsync();
-
-    return Results.Content(json, "application/json");
-})
-.WithName("GetMatches")
-.WithOpenApi();
+// 5. Connecter les contrôleurs (StandingsController, MatchesController...)
+app.MapControllers();
 
 app.Run();
