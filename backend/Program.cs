@@ -25,7 +25,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors();
 
-const string API_KEY = "PUT_YOUR_KEY_HERE";
+const string API_KEY = "09ad3ab632e64a74898a233a13342e88";
 const string BASE_URL = "https://api.football-data.org/v4";
 
 app.MapGet("/api/matches", async (IHttpClientFactory httpClientFactory) =>
