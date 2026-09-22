@@ -25,13 +25,13 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors();
 
-const string API_KEY = "09ad3ab632e64a74898a233a13342e88";
+var apiKey = builder.Configuration["FootballData:ApiKey"]; 
 const string BASE_URL = "https://api.football-data.org/v4";
 
 app.MapGet("/api/matches", async (IHttpClientFactory httpClientFactory) =>
 {
     var client = httpClientFactory.CreateClient();
-    client.DefaultRequestHeaders.Add("X-Auth-Token", API_KEY);
+    client.DefaultRequestHeaders.Add("X-Auth-Token", apiKey);
 
     var response = await client.GetAsync($"{BASE_URL}/competitions/PL/matches?status=SCHEDULED");
     var json = await response.Content.ReadAsStringAsync();
