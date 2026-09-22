@@ -1,21 +1,32 @@
-import type { Match, TablePosition } from './types'
+import './style.css'
+import type { Match, TablePosition, Scorer } from './types'
 import type { Language } from './i18n'
 import { translations } from './i18n'
-import { formatDate } from './utils'
 
 export function renderAppLayout(
-  activeTab: 'matches' | 'standings',
+  activeTab: 'matches' | 'standings' | 'players',
   _allCount: number,
   filteredMatches: Match[],
   currentFilter: string,
   searchQuery: string,
   standingsTable: TablePosition[],
+  topScorers: Scorer[],
   lang: Language,
   currentLeague: string,
-  _selectedMatch: Match | null
+  selectedMatch: Match | null,
+  sortBy: 'goals' | 'assists' = 'goals',
+  highlightVideoId: string | null = null
 ): string {
   const t = translations[lang]
 
+  // Trier les joueurs selon la sélection
+  const sortedScorers = [...topScorers].sort((a, b) => {
+    const valA = sortBy === 'assists' ? (a.assists ?? 0) : (a.goals ?? (a as any).goalsCount ?? 0)
+    const valB = sortBy === 'assists' ? (b.assists ?? 0) : (b.goals ?? (b as any).goalsCount ?? 0)
+    return valB - valA
+  })
+
+  // 1. Liste des Matchs
   const matchesHtml = filteredMatches.length === 0
     ? `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.noMatches}</div>`
     : filteredMatches.map((m) => {
@@ -46,10 +57,12 @@ export function renderAppLayout(
                 <span class="team-score">${awayScore}</span>
               </div>
             </div>
+            ${m.status === 'FINISHED' ? `<div class="view-stats-hint">${t.clickStatsHint}</div>` : ''}
           </div>
         `
       }).join('')
 
+  // 2. Tableau du Classement
   const standingsHtml = standingsTable.length === 0
     ? `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.loading}</div>`
     : `
@@ -86,9 +99,110 @@ export function renderAppLayout(
       </table>
     `
 
+  // 3. Tableau des Buteurs (avec tri et alignement corrigé)
+  const playersHtml = sortedScorers.length === 0
+    ? `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.loading}</div>`
+    : `
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th style="text-align:left;">${t.thPlayer}</th>
+            <th style="text-align:left;">${t.thTeam}</th>
+            <th>${t.thMatches}</th>
+            <th class="sortable-header ${sortBy === 'goals' ? 'active' : ''}" data-sort="goals" style="cursor:pointer;">
+              ${t.thGoals} ${sortBy === 'goals' ? '▼' : ''}
+            </th>
+            <th class="sortable-header ${sortBy === 'assists' ? 'active' : ''}" data-sort="assists" style="cursor:pointer;">
+              ${t.thAssists} ${sortBy === 'assists' ? '▼' : ''}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sortedScorers.map((s, idx) => {
+            const goals = s.goals ?? (s as any).goalsCount ?? 0
+            const matches = s.playedMatches ?? '-'
+            const assists = s.assists ?? 0
+
+            return `
+              <tr>
+                <td style="vertical-align: middle;"><strong>${idx + 1}</strong></td>
+                <td style="text-align:left; vertical-align: middle;">
+                  <strong>${s.player.name}</strong>
+                  <div style="font-size:0.75rem; color:var(--text-secondary);">${s.player.nationality || ''}</div>
+                </td>
+                <td style="text-align:left; vertical-align: middle;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    ${s.team.crest ? `<img src="${s.team.crest}" class="team-crest" alt="" style="width:20px; height:20px; object-fit:contain;" />` : ''}
+                    <span>${s.team.name}</span>
+                  </div>
+                </td>
+                <td style="vertical-align: middle;">${matches}</td>
+                <td style="vertical-align: middle;"><strong style="color: ${sortBy === 'goals' ? 'var(--accent-color, #3b82f6)' : 'inherit'};">${goals}</strong></td>
+                <td style="vertical-align: middle;"><strong style="color: ${sortBy === 'assists' ? 'var(--accent-color, #3b82f6)' : 'inherit'};">${assists}</strong></td>
+              </tr>
+            `
+          }).join('')}
+        </tbody>
+      </table>
+    `
+
+  // 4. Modale Statistiques + Vidéo Résumé YouTube
+  const modalHtml = selectedMatch ? `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-content">
+        <button class="modal-close" id="modal-close">&times;</button>
+        <h2>${t.modalTitle}</h2>
+        <div class="modal-match-header">
+          <div class="modal-team">
+            ${selectedMatch.homeTeam.crest ? `<img src="${selectedMatch.homeTeam.crest}" />` : ''}
+            <h3>${selectedMatch.homeTeam.name}</h3>
+          </div>
+          <div class="modal-score">
+            <span>${selectedMatch.score?.fullTime?.home ?? 0} - ${selectedMatch.score?.fullTime?.away ?? 0}</span>
+            <small>${selectedMatch.status}</small>
+          </div>
+          <div class="modal-team">
+            ${selectedMatch.awayTeam.crest ? `<img src="${selectedMatch.awayTeam.crest}" />` : ''}
+            <h3>${selectedMatch.awayTeam.name}</h3>
+          </div>
+        </div>
+
+        ${selectedMatch.status === 'FINISHED' ? `
+          <div class="video-container" style="margin-top: 1.5rem; text-align: center;">
+            <h4 style="margin-bottom: 0.75rem; color: var(--text-primary, #ffffff);">🎥 Résumé vidéo du match</h4>
+            ${highlightVideoId ? `
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
+                <iframe 
+                  src="https://www.youtube.com/embed/${highlightVideoId}" 
+                  style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen>
+                </iframe>
+              </div>
+            ` : `<p style="color: var(--text-secondary); font-size: 0.85rem; padding: 1rem;">Chargement du résumé vidéo...</p>`}
+          </div>
+        ` : ''}
+
+        <div class="modal-stats-list" style="margin-top: 1.5rem;">
+          <div class="stat-row">
+            <span>${t.modalMatchDate}</span>
+            <strong>${formatDate(selectedMatch.utcDate, lang)}</strong>
+          </div>
+          ${selectedMatch.status === 'FINISHED' ? `
+            <div class="stat-row">
+              <span>${t.modalHalfTimeScore}</span>
+              <strong>${selectedMatch.score?.halfTime?.home ?? 0} - ${selectedMatch.score?.halfTime?.away ?? 0}</strong>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  ` : ''
+
   return `
     <header>
-      <h1>Football Tracker</h1>
+      <h1>Football Tracker <span class="badge-pro">PRO</span></h1>
       <select id="league-select">
         ${Object.entries(t.leagues).map(([code, name]) => `
           <option value="${code}" ${code === currentLeague ? 'selected' : ''}>${name}</option>
@@ -100,6 +214,7 @@ export function renderAppLayout(
       <div style="display: flex; gap: 0.5rem;">
         <button class="tab-btn ${activeTab === 'matches' ? 'active' : ''}" data-tab="matches">${t.tabMatches}</button>
         <button class="tab-btn ${activeTab === 'standings' ? 'active' : ''}" data-tab="standings">${t.tabStandings}</button>
+        <button class="tab-btn ${activeTab === 'players' ? 'active' : ''}" data-tab="players">${t.tabPlayers}</button>
       </div>
 
       ${activeTab === 'matches' ? `
@@ -121,7 +236,22 @@ export function renderAppLayout(
     </div>
 
     <main>
-      ${activeTab === 'matches' ? `<div class="matches-list">${matchesHtml}</div>` : standingsHtml}
+      ${activeTab === 'matches' ? `<div class="matches-list">${matchesHtml}</div>` : ''}
+      ${activeTab === 'standings' ? standingsHtml : ''}
+      ${activeTab === 'players' ? playersHtml : ''}
     </main>
+
+    ${modalHtml}
   `
+}
+
+export function formatDate(dateString: string, lang: string = 'fr'): string {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
 }

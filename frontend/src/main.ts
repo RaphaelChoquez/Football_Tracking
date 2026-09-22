@@ -1,167 +1,39 @@
-import './style.css'
-import type { Match, TablePosition, StandingsResponse } from './types'
-import type { Language } from './i18n'
-import { filterMatches } from './utils'
 import { renderAppLayout } from './render'
+import './style.css'
+import type { Match, TablePosition, Scorer } from './types'
+import type { Language } from './i18n'
+
+// Variables d'état (déclarées UNE SEULE FOIS)
+let activeTab: 'matches' | 'standings' | 'players' = 'matches'
+let currentLeague = 'PL'
+let currentFilter = 'ALL'
+let searchQuery = ''
+let currentLang: Language = 'fr'
+let selectedMatch: Match | null = null
+let currentSortBy: 'goals' | 'assists' = 'goals' // État de tri par défaut
+
+let allMatches: Match[] = []
+let standingsTable: TablePosition[] = []
+let topScorers: Scorer[] = []
+let isLoading = false
 
 const MATCHES_API_URL = 'http://localhost:5164/api/matches'
 const STANDINGS_API_URL = 'http://localhost:5164/api/standings'
-
-let activeTab: 'matches' | 'standings' = 'matches'
-let currentLeague: string = 'PL'
-let allMatches: Match[] = []
-let standingsTable: TablePosition[] = []
-let currentFilter: string = 'ALL'
-let searchQuery: string = ''
-let currentLang: Language = 'fr'
-let selectedMatch: Match | null = null
-let isLoading: boolean = false
-
-function updateUI(): void {
-  const app = document.querySelector<HTMLDivElement>('#app')
-  if (!app) return
-
-  const filteredMatches = filterMatches(allMatches, currentFilter, searchQuery)
-  
-  app.innerHTML = renderAppLayout(
-    activeTab,
-    allMatches.length,
-    isLoading ? [] : filteredMatches,
-    currentFilter,
-    searchQuery,
-    standingsTable,
-    currentLang,
-    currentLeague,
-    selectedMatch
-  )
-
-  if (isLoading && activeTab === 'matches') {
-    const listEl = app.querySelector('.matches-list') || app.querySelector('.controls-bar')?.nextElementSibling
-    if (listEl) {
-      listEl.innerHTML = `<p style="text-align:center; padding: 2rem; color: var(--text-muted);">Chargement des matchs pour ${currentLeague}...</p>`
-    }
-  }
-
-  // Changement de ligue
-  const leagueSelect = app.querySelector<HTMLSelectElement>('#league-select')
-  if (leagueSelect) {
-    leagueSelect.addEventListener('change', (e) => {
-      const newLeague = (e.target as HTMLSelectElement).value
-      if (newLeague === currentLeague) return
-
-      currentLeague = newLeague
-      allMatches = []
-      standingsTable = []
-      selectedMatch = null
-      
-      // Réinitialiser la recherche et les filtres
-      currentFilter = 'ALL'
-      searchQuery = ''
-
-      if (activeTab === 'matches') {
-        loadMatches()
-      } else {
-        loadStandings()
-      }
-    })
-  }
-
-  // Changement de langue
-  const langButtons = app.querySelectorAll<HTMLButtonElement>('.lang-btn')
-  langButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const lang = btn.getAttribute('data-lang') as Language
-      if (lang) {
-        currentLang = lang
-        updateUI()
-      }
-    })
-  })
-
-  // Changement d'onglet
-  const tabButtons = app.querySelectorAll<HTMLButtonElement>('.tab-btn')
-  tabButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tab = btn.getAttribute('data-tab') as 'matches' | 'standings'
-      if (tab && tab !== activeTab) {
-        activeTab = tab
-        if (activeTab === 'standings' && standingsTable.length === 0) {
-          loadStandings()
-        } else if (activeTab === 'matches' && allMatches.length === 0) {
-          loadMatches()
-        } else {
-          updateUI()
-        }
-      }
-    })
-  })
-
-  // Modale détails
-  const cards = app.querySelectorAll<HTMLDivElement>('.match-card')
-  cards.forEach((card) => {
-    card.addEventListener('click', () => {
-      const id = card.getAttribute('data-match-id')
-      if (id) {
-        selectedMatch = allMatches.find((m) => m.id === Number(id)) || null
-        updateUI()
-      }
-    })
-  })
-
-  const closeBtn = app.querySelector('#modal-close')
-  const overlay = app.querySelector('#modal-overlay')
-  if (closeBtn) closeBtn.addEventListener('click', () => { selectedMatch = null; updateUI(); })
-  if (overlay) overlay.addEventListener('click', (e) => { if (e.target === overlay) { selectedMatch = null; updateUI(); } })
-
-  // Recherche & Filtres
-  const searchInput = app.querySelector<HTMLInputElement>('#search-input')
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      searchQuery = (e.target as HTMLInputElement).value
-      updateUI()
-      const updatedInput = document.querySelector<HTMLInputElement>('#search-input')
-      if (updatedInput) {
-        updatedInput.focus()
-        updatedInput.setSelectionRange(searchQuery.length, searchQuery.length)
-      }
-    })
-  }
-
-  const filterButtons = app.querySelectorAll<HTMLButtonElement>('.filter-btn')
-  filterButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const filter = btn.getAttribute('data-filter')
-      if (filter) {
-        currentFilter = filter
-        updateUI()
-      }
-    })
-  })
-}
+const SCORERS_API_URL = 'http://localhost:5164/api/players/scorers'
 
 async function loadMatches(): Promise<void> {
   isLoading = true
   updateUI()
-
   try {
-    // Construction explicite de l'URL avec le paramètre de ligue
     const url = new URL(MATCHES_API_URL)
     url.searchParams.set('code', currentLeague)
-
-    console.log(`[Fetch] Appel de l'API : ${url.toString()}`)
-
     const response = await fetch(url.toString())
-    if (!response.ok) {
-      console.error(`Erreur HTTP ${response.status} pour la ligue${currentLeague}`)
-      allMatches = []
-    } else {
-      const data: { matches: Match[] } = await response.json()
-      console.log(`[Succès] Matchs reçus pour ${currentLeague}:`, data.matches)
+    if (response.ok) {
+      const data = await response.json()
       allMatches = data.matches || []
     }
-  } catch (error) {
-    console.error('Erreur réseau matchs:', error)
-    allMatches = []
+  } catch (err) {
+    console.error('Erreur chargement matchs:', err)
   } finally {
     isLoading = false
     updateUI()
@@ -171,24 +43,160 @@ async function loadMatches(): Promise<void> {
 async function loadStandings(): Promise<void> {
   isLoading = true
   updateUI()
-
   try {
-    const response = await fetch(`${STANDINGS_API_URL}?code=${currentLeague}`)
-    if (!response.ok) {
-      console.error(`Erreur classement HTTP ${response.status} pour ${currentLeague}`)
-      standingsTable = []
-    } else {
-      const data: StandingsResponse = await response.json()
-      const totalStanding = data.standings?.find((s) => s.type === 'TOTAL')
-      standingsTable = totalStanding ? totalStanding.table : []
+    const url = new URL(STANDINGS_API_URL)
+    url.searchParams.set('code', currentLeague)
+    const response = await fetch(url.toString())
+    if (response.ok) {
+      const data = await response.json()
+      standingsTable = data.standings?.[0]?.table || []
     }
-  } catch (error) {
-    console.error('Erreur réseau classement:', error)
-    standingsTable = []
+  } catch (err) {
+    console.error('Erreur chargement classement:', err)
   } finally {
     isLoading = false
     updateUI()
   }
 }
 
+async function loadTopScorers(): Promise<void> {
+  isLoading = true
+  updateUI()
+  try {
+    const url = new URL(SCORERS_API_URL)
+    url.searchParams.set('code', currentLeague)
+    const response = await fetch(url.toString())
+    if (response.ok) {
+      const data = await response.json()
+      topScorers = data.scorers || []
+    }
+  } catch (err) {
+    console.error('Erreur chargement buteurs:', err)
+  } finally {
+    isLoading = false
+    updateUI()
+  }
+}
+
+function updateUI(): void {
+  const appElement = document.getElementById('app')
+  if (!appElement) return
+
+  const filteredMatches = allMatches.filter((m) => {
+    const matchesFilter =
+      currentFilter === 'ALL' ||
+      (currentFilter === 'SCHEDULED' && (m.status === 'SCHEDULED' || m.status === 'TIMED')) ||
+      (currentFilter === 'LIVE' && (m.status === 'LIVE' || m.status === 'IN_PLAY')) ||
+      (currentFilter === 'FINISHED' && m.status === 'FINISHED')
+
+    const matchesSearch =
+      m.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase())
+
+    return matchesFilter && matchesSearch
+  })
+
+  // Appel de la vue avec le 11e argument : currentSortBy
+  appElement.innerHTML = renderAppLayout(
+    activeTab,
+    allMatches.length,
+    filteredMatches,
+    currentFilter,
+    searchQuery,
+    standingsTable,
+    topScorers,
+    currentLang,
+    currentLeague,
+    selectedMatch,
+    currentSortBy
+  )
+
+  attachEvents()
+}
+
+function attachEvents(): void {
+  // Choix de la ligue
+  document.getElementById('league-select')?.addEventListener('change', (e) => {
+    currentLeague = (e.target as HTMLSelectElement).value
+    if (activeTab === 'matches') loadMatches()
+    if (activeTab === 'standings') loadStandings()
+    if (activeTab === 'players') loadTopScorers()
+  })
+
+  // Navigation par onglets
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement
+      const tab = target.getAttribute('data-tab') as 'matches' | 'standings' | 'players'
+      if (tab) {
+        activeTab = tab
+        if (activeTab === 'matches' && allMatches.length === 0) loadMatches()
+        if (activeTab === 'standings' && standingsTable.length === 0) loadStandings()
+        if (activeTab === 'players') loadTopScorers()
+        updateUI()
+      }
+    })
+  })
+
+  // Clic sur en-tête pour le tri (Buts / Passes d.)
+  document.querySelectorAll('.sortable-header').forEach((header) => {
+    header.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement
+      const sortType = target.getAttribute('data-sort') as 'goals' | 'assists'
+      if (sortType) {
+        currentSortBy = sortType
+        updateUI()
+      }
+    })
+  })
+
+  // Filtres de statut
+  document.querySelectorAll('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement
+      currentFilter = target.getAttribute('data-filter') || 'ALL'
+      updateUI()
+    })
+  })
+
+  // Champ de recherche
+  document.getElementById('search-input')?.addEventListener('input', (e) => {
+    searchQuery = (e.target as HTMLInputElement).value
+    updateUI()
+  })
+
+  // Changement de langue
+  document.querySelectorAll('.lang-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement
+      currentLang = (target.getAttribute('data-lang') as Language) || 'fr'
+      updateUI()
+    })
+  })
+
+  // Clic sur une carte de match
+  document.querySelectorAll('.match-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const matchId = Number(card.getAttribute('data-match-id'))
+      selectedMatch = allMatches.find((m) => m.id === matchId) || null
+      updateUI()
+    })
+  })
+
+  // Fermer la modale
+  document.getElementById('modal-close')?.addEventListener('click', () => {
+    selectedMatch = null
+    updateUI()
+  })
+
+  document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      selectedMatch = null
+      updateUI()
+    }
+  })
+}
+
+// Lancement initial
 loadMatches()
+loadStandings()

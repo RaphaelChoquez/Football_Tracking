@@ -2,8 +2,15 @@ export type Language = 'fr' | 'en'
 
 export const translations = {
   fr: {
-    title: 'Football Tracker',
-    selectLeague: 'Sélectionner une ligue',
+    noMatches: 'Aucun match trouvé',
+    loading: 'Chargement...',
+    tableTeam: 'Équipe',
+    tablePlayed: 'J',
+    tableWon: 'V',
+    tableDraw: 'N',
+    tableLost: 'D',
+    tableDiff: 'Diff',
+    tablePoints: 'Pts',
     tabMatches: 'Matchs',
     tabStandings: 'Classement',
     searchPlaceholder: 'Rechercher une équipe...',
@@ -11,66 +18,85 @@ export const translations = {
     filterScheduled: 'À venir',
     filterLive: 'En direct',
     filterFinished: 'Terminés',
-    noMatches: 'Aucun match trouvé.',
-    loading: 'Chargement en cours...',
-    close: 'Fermer',
-    matchDetails: 'Détails du match',
-    tableTeam: 'Équipe',
-    tablePlayed: 'J',
-    tableWon: 'G',
-    tableDraw: 'N',
-    tableLost: 'P',
-    tableDiff: 'DB',
-    tablePoints: 'Pts',
-    statusFINISHED: 'Terminé',
+    
+    // Buteurs
+    tabPlayers: 'Buteurs',
+    thPlayer: 'Joueur',
+    thTeam: 'Équipe',
+    thMatches: 'Matchs',
+    thGoals: 'Buts',
+    thAssists: 'Passes d.',
+
+    // Modale & Statuts
+    modalTitle: 'Détails du match',
+    modalMatchDate: 'Date du match',
+    modalHalfTimeScore: 'Score Mi-Temps',
+    clickStatsHint: '📊 Cliquez pour voir les détails',
+
     statusSCHEDULED: 'À venir',
-    statusTIMED: 'À venir',         // <-- Ajouté ici
-    statusLIVE: 'En direct',
-    statusIN_PLAY: 'En direct',
+    statusTIMED: 'Programmé',
+    statusIN_PLAY: 'En cours',
     statusPAUSED: 'Mi-temps',
+    statusFINISHED: 'Terminé',
+    statusSUSPENDED: 'Suspendu',
+    statusPOSTPONED: 'Reporté',
+    statusCANCELLED: 'Annulé',
+
     leagues: {
       PL: 'Premier League',
-      FL1: 'Ligue 1',
       PD: 'La Liga',
+      FL1: 'Ligue 1',
       BL1: 'Bundesliga',
-      SA: 'Serie A',
-      CL: 'Ligue des Champions'
+      SA: 'Serie A'
     }
   },
   en: {
-    title: 'Football Tracker',
-    selectLeague: 'Select League',
-    tabMatches: 'Matches',
-    tabStandings: 'Standings',
-    searchPlaceholder: 'Search a team...',
-    filterAll: 'All',
-    filterScheduled: 'Upcoming',
-    filterLive: 'Live',
-    filterFinished: 'Finished',
-    noMatches: 'No matches found.',
+    noMatches: 'No matches found',
     loading: 'Loading...',
-    close: 'Close',
-    matchDetails: 'Match Details',
     tableTeam: 'Team',
-    tablePlayed: 'MP',
+    tablePlayed: 'P',
     tableWon: 'W',
     tableDraw: 'D',
     tableLost: 'L',
     tableDiff: 'GD',
     tablePoints: 'Pts',
-    statusFINISHED: 'Finished',
+    tabMatches: 'Matches',
+    tabStandings: 'Standings',
+    searchPlaceholder: 'Search team...',
+    filterAll: 'All',
+    filterScheduled: 'Upcoming',
+    filterLive: 'Live',
+    filterFinished: 'Finished',
+    
+    // Top Scorers
+    tabPlayers: 'Top Scorers',
+    thPlayer: 'Player',
+    thTeam: 'Team',
+    thMatches: 'Matches',
+    thGoals: 'Goals',
+    thAssists: 'Assists',
+
+    // Modal & Statuses
+    modalTitle: 'Match Details',
+    modalMatchDate: 'Match Date',
+    modalHalfTimeScore: 'Half-Time Score',
+    clickStatsHint: '📊 Click to view details',
+
     statusSCHEDULED: 'Upcoming',
-    statusTIMED: 'Upcoming',         // <-- Ajouté ici
-    statusLIVE: 'Live',
+    statusTIMED: 'Scheduled',
     statusIN_PLAY: 'Live',
     statusPAUSED: 'Half-Time',
+    statusFINISHED: 'Finished',
+    statusSUSPENDED: 'Suspended',
+    statusPOSTPONED: 'Postponed',
+    statusCANCELLED: 'Cancelled',
+
     leagues: {
       PL: 'Premier League',
-      FL1: 'Ligue 1',
       PD: 'La Liga',
+      FL1: 'Ligue 1',
       BL1: 'Bundesliga',
-      SA: 'Serie A',
-      CL: 'Champions League'
+      SA: 'Serie A'
     }
   }
 }
