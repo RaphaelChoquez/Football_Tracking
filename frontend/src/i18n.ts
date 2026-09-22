@@ -31,8 +31,8 @@ export const translations = {
     modalTitle: 'Détails du match',
     modalMatchDate: 'Date du match',
     modalHalfTimeScore: 'Score Mi-Temps',
-    clickStatsHint: '📊 Cliquez pour voir les détails',
-    videoHighlightTitle: '🎥 Résumé vidéo du match',
+    clickStatsHint: 'Cliquez pour voir les détails',
+    videoHighlightTitle: 'Résumé vidéo du match',
     videoLoading: 'Chargement du résumé vidéo...',
     videoNotFound: 'Aucun résumé disponible pour ce match.',
 
@@ -83,8 +83,8 @@ export const translations = {
     modalTitle: 'Match Details',
     modalMatchDate: 'Match Date',
     modalHalfTimeScore: 'Half-Time Score',
-    clickStatsHint: '📊 Click to view details',
-    videoHighlightTitle: '🎥 Match Video Highlights',
+    clickStatsHint: 'Click to view details',
+    videoHighlightTitle: 'Match Video Highlights',
     videoLoading: 'Loading video highlights...',
     videoNotFound: 'No highlights available for this match.',
 

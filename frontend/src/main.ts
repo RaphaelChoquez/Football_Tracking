@@ -17,7 +17,7 @@ let currentVideoId: string | null = null // 👈 Stocke l'ID vidéo de la modale
 let allMatches: Match[] = []
 let standingsTable: TablePosition[] = []
 let topScorers: Scorer[] = []
-let isLoading = false
+let isLoading = true
 
 const MATCHES_API_URL = 'http://localhost:5164/api/matches'
 const STANDINGS_API_URL = 'http://localhost:5164/api/standings'
@@ -84,21 +84,24 @@ function updateUI(): void {
   const appElement = document.getElementById('app')
   if (!appElement) return
 
-  const filteredMatches = allMatches.filter((m) => {
-    const matchesFilter =
-      currentFilter === 'ALL' ||
-      (currentFilter === 'SCHEDULED' && (m.status === 'SCHEDULED' || m.status === 'TIMED')) ||
-      (currentFilter === 'LIVE' && (m.status === 'LIVE' || m.status === 'IN_PLAY')) ||
-      (currentFilter === 'FINISHED' && m.status === 'FINISHED')
+  // Ne filtre les matchs QUE si le chargement est terminé
+  const filteredMatches = isLoading
+    ? []
+    : allMatches.filter((m) => {
+        const matchesFilter =
+          currentFilter === 'ALL' ||
+          (currentFilter === 'SCHEDULED' && (m.status === 'SCHEDULED' || m.status === 'TIMED')) ||
+          (currentFilter === 'LIVE' && (m.status === 'LIVE' || m.status === 'IN_PLAY')) ||
+          (currentFilter === 'FINISHED' && m.status === 'FINISHED')
 
-    const matchesSearch =
-      m.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch =
+          m.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase())
 
-    return matchesFilter && matchesSearch
-  })
+        return matchesFilter && matchesSearch
+      })
 
-  // Transmet currentVideoId en 12e argument à renderAppLayout
+  // Transmet isLoading en 13ème argument !
   appElement.innerHTML = renderAppLayout(
     activeTab,
     allMatches.length,
@@ -111,7 +114,8 @@ function updateUI(): void {
     currentLeague,
     selectedMatch,
     currentSortBy,
-    currentVideoId
+    currentVideoId,
+    isLoading // 👈 13ème argument indispensable
   )
 
   attachEvents()
@@ -119,32 +123,48 @@ function updateUI(): void {
 
 function attachEvents(): void {
 // Choix de la ligue
+// Choix de la ligue
   document.getElementById('league-select')?.addEventListener('change', (e) => {
     currentLeague = (e.target as HTMLSelectElement).value
 
-    // 1. Réinitialiser toutes les données pour éviter de conserver l'ancienne ligue
+    // 1. Réinitialiser toutes les données
     allMatches = []
     standingsTable = []
     topScorers = []
     selectedMatch = null
     currentVideoId = null
 
-    // 2. Charger les données de la catégorie active
+    // 2. FORCER L'ÉTAT DE CHARGEMENT AVANT D'APPELER L'API
+    isLoading = true
+    updateUI() // Affiche immédiatement "Chargement..." sans aucun clignotement
+
+    // 3. Charger les données de la catégorie active
     if (activeTab === 'matches') loadMatches()
     if (activeTab === 'standings') loadStandings()
     if (activeTab === 'players') loadTopScorers()
   })
 
-  // Navigation par onglets
+// Navigation par onglets
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLElement
       const tab = target.getAttribute('data-tab') as 'matches' | 'standings' | 'players'
       if (tab) {
         activeTab = tab
+        
+        // Si les données de l'onglet sont vides, active le chargement immédiatement
+        if (
+          (activeTab === 'matches' && allMatches.length === 0) ||
+          (activeTab === 'standings' && standingsTable.length === 0) ||
+          activeTab === 'players'
+        ) {
+          isLoading = true
+        }
+
         if (activeTab === 'matches' && allMatches.length === 0) loadMatches()
         if (activeTab === 'standings' && standingsTable.length === 0) loadStandings()
         if (activeTab === 'players') loadTopScorers()
+        
         updateUI()
       }
     })
@@ -171,11 +191,45 @@ function attachEvents(): void {
     })
   })
 
-  // Champ de recherche
-  document.getElementById('search-input')?.addEventListener('input', (e) => {
+// Champ de recherche
+const searchInput = document.getElementById('search-input') as HTMLInputElement | null
+if (searchInput) {
+  // Remet le curseur à la fin du texte si le composant s'est fait re-rendre
+  if (document.activeElement !== searchInput && searchQuery) {
+    searchInput.focus()
+    searchInput.setSelectionRange(searchQuery.length, searchQuery.length)
+  }
+
+  searchInput.addEventListener('input', (e) => {
     searchQuery = (e.target as HTMLInputElement).value
-    updateUI()
+    
+    // Met uniquement à jour la liste des matchs SANS ré-exécuter isLoading ou re-détruire la page entière
+    const matchesListContainer = document.querySelector('.matches-list')
+    if (matchesListContainer) {
+      const filtered = allMatches.filter((m) => {
+        const matchesFilter =
+          currentFilter === 'ALL' ||
+          (currentFilter === 'SCHEDULED' && (m.status === 'SCHEDULED' || m.status === 'TIMED')) ||
+          (currentFilter === 'LIVE' && (m.status === 'LIVE' || m.status === 'IN_PLAY')) ||
+          (currentFilter === 'FINISHED' && m.status === 'FINISHED')
+
+        const matchesSearch =
+          m.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase())
+
+        return matchesFilter && matchesSearch
+      })
+
+      // Si aucun résultat après la saisie
+      if (filtered.length === 0) {
+        matchesListContainer.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${translations[currentLang].noMatches}</div>`
+      } else {
+        // Met à jour la liste en direct sans toucher au reste du DOM
+        updateUI()
+      }
+    }
   })
+}
 
   // Changement de langue
   document.querySelectorAll('.lang-btn').forEach((btn) => {

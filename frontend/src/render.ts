@@ -27,9 +27,11 @@ export function renderAppLayout(
     return valB - valA
   })
 
-  // 1. Liste des Matchs (Gestion du chargement VS aucun résultat)
+// 1. Liste des Matchs
   let matchesHtml = ''
-  if (isLoading) {
+
+  // Si on est en train de charger OU qu'aucun match n'a encore été chargé pour le filtre par défaut
+  if (isLoading || (_allCount === 0 && searchQuery === '' && currentFilter === 'ALL')) {
     matchesHtml = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.loading}</div>`
   } else if (filteredMatches.length === 0) {
     matchesHtml = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.noMatches}</div>`
@@ -68,10 +70,14 @@ export function renderAppLayout(
     }).join('')
   }
 
-  // 2. Tableau du Classement
-  const standingsHtml = standingsTable.length === 0
-    ? `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.loading}</div>`
-    : `
+// 2. Tableau du Classement
+  let standingsHtml = ''
+  if (isLoading) {
+    standingsHtml = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.loading}</div>`
+  } else if (standingsTable.length === 0) {
+    standingsHtml = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.noMatches}</div>`
+  } else {
+    standingsHtml = `
       <table class="standings-table">
         <thead>
           <tr>
@@ -104,6 +110,7 @@ export function renderAppLayout(
         </tbody>
       </table>
     `
+  }
 
   // 3. Tableau des Buteurs (avec tri et alignement corrigé)
   const playersHtml = sortedScorers.length === 0
