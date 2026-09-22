@@ -1,48 +1,48 @@
 import type { Match } from './types'
 
-export function formatDate(isoString: string): string {
-  const date = new Date(isoString)
-  if (Number.isNaN(date.getTime())) {
-    return 'Date inconnue'
-  }
-  return date.toLocaleString('fr-CA', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  })
-}
+export function filterMatches(
+  matches: Match[],
+  filter: string,
+  searchQuery: string
+): Match[] {
+  if (!matches || !Array.isArray(matches)) return []
 
-export function statusClass(status: string): string {
-  switch (status) {
-    case 'FINISHED':
-      return 'status-finished'
-    case 'IN_PLAY':
-    case 'LIVE':
-    case 'PAUSED':
-      return 'status-live'
-    default:
-      return 'status-scheduled'
-  }
-}
-
-export function filterMatches(matches: Match[], filter: string, searchQuery: string): Match[] {
-  return matches.filter((m) => {
-    // 1. Filtre par statut
+  return matches.filter((match) => {
+    // 1. Filtrage par statut de match
     let matchesStatus = true
     if (filter === 'SCHEDULED') {
-      matchesStatus = m.status === 'SCHEDULED' || m.status === 'TIMED'
+      matchesStatus = match.status === 'SCHEDULED' || match.status === 'TIMED'
     } else if (filter === 'LIVE') {
-      matchesStatus = m.status === 'IN_PLAY' || m.status === 'LIVE' || m.status === 'PAUSED'
+      matchesStatus =
+        match.status === 'IN_PLAY' ||
+        match.status === 'PAUSED' ||
+        match.status === 'IN_PLAY_1ST_HALF' ||
+        match.status === 'IN_PLAY_2ND_HALF'
     } else if (filter === 'FINISHED') {
-      matchesStatus = m.status === 'FINISHED'
+      matchesStatus = match.status === 'FINISHED'
     }
 
-    // 2. Filtre par nom d'équipe
-    const query = searchQuery.trim().toLowerCase()
-    const matchesSearch =
-      query === '' ||
-      m.homeTeam.name.toLowerCase().includes(query) ||
-      m.awayTeam.name.toLowerCase().includes(query)
+    // 2. Filtrage par recherche texte
+    let matchesSearch = true
+    if (searchQuery && searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim()
+      const homeName = (match.homeTeam?.name || match.homeTeam?.shortName || '').toLowerCase()
+      const awayName = (match.awayTeam?.name || match.awayTeam?.shortName || '').toLowerCase()
+      
+      matchesSearch = homeName.includes(q) || awayName.includes(q)
+    }
 
     return matchesStatus && matchesSearch
   })
+}
+
+export function formatDate(dateString: string, lang: string = 'fr'): string {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
 }
