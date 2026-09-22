@@ -2,6 +2,7 @@ import { renderAppLayout } from './render'
 import './style.css'
 import type { Match, TablePosition, Scorer } from './types'
 import type { Language } from './i18n'
+import { translations } from './i18n'
 import { fetchMatchHighlight } from './youtube'
 
 // Variables d'état
@@ -12,7 +13,7 @@ let searchQuery = ''
 let currentLang: Language = 'fr'
 let selectedMatch: Match | null = null
 let currentSortBy: 'goals' | 'assists' = 'goals'
-let currentVideoId: string | null = null // 👈 Stocke l'ID vidéo de la modale active
+let currentVideoId: string | null = null
 
 let allMatches: Match[] = []
 let standingsTable: TablePosition[] = []
@@ -84,7 +85,6 @@ function updateUI(): void {
   const appElement = document.getElementById('app')
   if (!appElement) return
 
-  // Ne filtre les matchs QUE si le chargement est terminé
   const filteredMatches = isLoading
     ? []
     : allMatches.filter((m) => {
@@ -101,7 +101,6 @@ function updateUI(): void {
         return matchesFilter && matchesSearch
       })
 
-  // Transmet isLoading en 13ème argument !
   appElement.innerHTML = renderAppLayout(
     activeTab,
     allMatches.length,
@@ -115,44 +114,39 @@ function updateUI(): void {
     selectedMatch,
     currentSortBy,
     currentVideoId,
-    isLoading // 👈 13ème argument indispensable
+    isLoading
   )
 
   attachEvents()
 }
 
 function attachEvents(): void {
-// Choix de la ligue
-// Choix de la ligue
+  // Choix de la ligue
   document.getElementById('league-select')?.addEventListener('change', (e) => {
     currentLeague = (e.target as HTMLSelectElement).value
 
-    // 1. Réinitialiser toutes les données
     allMatches = []
     standingsTable = []
     topScorers = []
     selectedMatch = null
     currentVideoId = null
 
-    // 2. FORCER L'ÉTAT DE CHARGEMENT AVANT D'APPELER L'API
     isLoading = true
-    updateUI() // Affiche immédiatement "Chargement..." sans aucun clignotement
+    updateUI()
 
-    // 3. Charger les données de la catégorie active
     if (activeTab === 'matches') loadMatches()
     if (activeTab === 'standings') loadStandings()
     if (activeTab === 'players') loadTopScorers()
   })
 
-// Navigation par onglets
+  // Navigation par onglets
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLElement
       const tab = target.getAttribute('data-tab') as 'matches' | 'standings' | 'players'
       if (tab) {
         activeTab = tab
-        
-        // Si les données de l'onglet sont vides, active le chargement immédiatement
+
         if (
           (activeTab === 'matches' && allMatches.length === 0) ||
           (activeTab === 'standings' && standingsTable.length === 0) ||
@@ -164,7 +158,7 @@ function attachEvents(): void {
         if (activeTab === 'matches' && allMatches.length === 0) loadMatches()
         if (activeTab === 'standings' && standingsTable.length === 0) loadStandings()
         if (activeTab === 'players') loadTopScorers()
-        
+
         updateUI()
       }
     })
@@ -191,45 +185,20 @@ function attachEvents(): void {
     })
   })
 
-// Champ de recherche
-const searchInput = document.getElementById('search-input') as HTMLInputElement | null
-if (searchInput) {
-  // Remet le curseur à la fin du texte si le composant s'est fait re-rendre
-  if (document.activeElement !== searchInput && searchQuery) {
-    searchInput.focus()
-    searchInput.setSelectionRange(searchQuery.length, searchQuery.length)
-  }
+  // Champ de recherche avec conservation du focus
+  const searchInput = document.getElementById('search-input') as HTMLInputElement | null
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = (e.target as HTMLInputElement).value
+      updateUI()
 
-  searchInput.addEventListener('input', (e) => {
-    searchQuery = (e.target as HTMLInputElement).value
-    
-    // Met uniquement à jour la liste des matchs SANS ré-exécuter isLoading ou re-détruire la page entière
-    const matchesListContainer = document.querySelector('.matches-list')
-    if (matchesListContainer) {
-      const filtered = allMatches.filter((m) => {
-        const matchesFilter =
-          currentFilter === 'ALL' ||
-          (currentFilter === 'SCHEDULED' && (m.status === 'SCHEDULED' || m.status === 'TIMED')) ||
-          (currentFilter === 'LIVE' && (m.status === 'LIVE' || m.status === 'IN_PLAY')) ||
-          (currentFilter === 'FINISHED' && m.status === 'FINISHED')
-
-        const matchesSearch =
-          m.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase())
-
-        return matchesFilter && matchesSearch
-      })
-
-      // Si aucun résultat après la saisie
-      if (filtered.length === 0) {
-        matchesListContainer.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${translations[currentLang].noMatches}</div>`
-      } else {
-        // Met à jour la liste en direct sans toucher au reste du DOM
-        updateUI()
+      const newSearchInput = document.getElementById('search-input') as HTMLInputElement | null
+      if (newSearchInput) {
+        newSearchInput.focus()
+        newSearchInput.setSelectionRange(searchQuery.length, searchQuery.length)
       }
-    }
-  })
-}
+    })
+  }
 
   // Changement de langue
   document.querySelectorAll('.lang-btn').forEach((btn) => {
@@ -240,7 +209,7 @@ if (searchInput) {
     })
   })
 
-// Clic sur une carte de match
+  // Clic sur une carte de match
   document.querySelectorAll('.match-card').forEach((card) => {
     card.addEventListener('click', async () => {
       const matchId = Number(card.getAttribute('data-match-id'))
@@ -248,12 +217,10 @@ if (searchInput) {
 
       if (match) {
         selectedMatch = match
-        currentVideoId = null // Réinitialise la vidéo précédente
-        updateUI() // Affiche immédiatement la modale
+        currentVideoId = null
+        updateUI()
 
-        //On cherche la vidéo UNIQUEMENT si le match est terminé
         if (match.status === 'FINISHED' || match.status === 'FT') {
-          // On passe l'année/date via match.utcDate en 3e argument
           const videoId = await fetchMatchHighlight(
             match.homeTeam.name,
             match.awayTeam.name,
@@ -262,7 +229,7 @@ if (searchInput) {
 
           if (selectedMatch && selectedMatch.id === match.id) {
             currentVideoId = videoId
-            updateUI() // Ré-affiche la modale avec le lecteur vidéo
+            updateUI()
           }
         }
       }
@@ -287,4 +254,3 @@ if (searchInput) {
 
 // Lancement initial
 loadMatches()
-loadStandings()
