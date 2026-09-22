@@ -2,15 +2,17 @@ import { renderAppLayout } from './render'
 import './style.css'
 import type { Match, TablePosition, Scorer } from './types'
 import type { Language } from './i18n'
+import { fetchMatchHighlight } from './youtube'
 
-// Variables d'état (déclarées UNE SEULE FOIS)
+// Variables d'état
 let activeTab: 'matches' | 'standings' | 'players' = 'matches'
 let currentLeague = 'PL'
 let currentFilter = 'ALL'
 let searchQuery = ''
 let currentLang: Language = 'fr'
 let selectedMatch: Match | null = null
-let currentSortBy: 'goals' | 'assists' = 'goals' // État de tri par défaut
+let currentSortBy: 'goals' | 'assists' = 'goals'
+let currentVideoId: string | null = null // 👈 Stocke l'ID vidéo de la modale active
 
 let allMatches: Match[] = []
 let standingsTable: TablePosition[] = []
@@ -96,7 +98,7 @@ function updateUI(): void {
     return matchesFilter && matchesSearch
   })
 
-  // Appel de la vue avec le 11e argument : currentSortBy
+  // Transmet currentVideoId en 12e argument à renderAppLayout
   appElement.innerHTML = renderAppLayout(
     activeTab,
     allMatches.length,
@@ -108,16 +110,26 @@ function updateUI(): void {
     currentLang,
     currentLeague,
     selectedMatch,
-    currentSortBy
+    currentSortBy,
+    currentVideoId
   )
 
   attachEvents()
 }
 
 function attachEvents(): void {
-  // Choix de la ligue
+// Choix de la ligue
   document.getElementById('league-select')?.addEventListener('change', (e) => {
     currentLeague = (e.target as HTMLSelectElement).value
+
+    // 1. Réinitialiser toutes les données pour éviter de conserver l'ancienne ligue
+    allMatches = []
+    standingsTable = []
+    topScorers = []
+    selectedMatch = null
+    currentVideoId = null
+
+    // 2. Charger les données de la catégorie active
     if (activeTab === 'matches') loadMatches()
     if (activeTab === 'standings') loadStandings()
     if (activeTab === 'players') loadTopScorers()
@@ -138,7 +150,7 @@ function attachEvents(): void {
     })
   })
 
-  // Clic sur en-tête pour le tri (Buts / Passes d.)
+  // Clic sur en-tête pour le tri
   document.querySelectorAll('.sortable-header').forEach((header) => {
     header.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLElement
@@ -174,24 +186,46 @@ function attachEvents(): void {
     })
   })
 
-  // Clic sur une carte de match
+// Clic sur une carte de match
   document.querySelectorAll('.match-card').forEach((card) => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', async () => {
       const matchId = Number(card.getAttribute('data-match-id'))
-      selectedMatch = allMatches.find((m) => m.id === matchId) || null
-      updateUI()
+      const match = allMatches.find((m) => m.id === matchId)
+
+      if (match) {
+        selectedMatch = match
+        currentVideoId = null // Réinitialise la vidéo précédente
+        updateUI() // Affiche immédiatement la modale
+
+        //On cherche la vidéo UNIQUEMENT si le match est terminé
+        if (match.status === 'FINISHED' || match.status === 'FT') {
+          // On passe l'année/date via match.utcDate en 3e argument
+          const videoId = await fetchMatchHighlight(
+            match.homeTeam.name,
+            match.awayTeam.name,
+            match.utcDate
+          )
+
+          if (selectedMatch && selectedMatch.id === match.id) {
+            currentVideoId = videoId
+            updateUI() // Ré-affiche la modale avec le lecteur vidéo
+          }
+        }
+      }
     })
   })
 
   // Fermer la modale
   document.getElementById('modal-close')?.addEventListener('click', () => {
     selectedMatch = null
+    currentVideoId = null
     updateUI()
   })
 
   document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) {
       selectedMatch = null
+      currentVideoId = null
       updateUI()
     }
   })

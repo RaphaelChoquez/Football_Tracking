@@ -15,7 +15,8 @@ export function renderAppLayout(
   currentLeague: string,
   selectedMatch: Match | null,
   sortBy: 'goals' | 'assists' = 'goals',
-  highlightVideoId: string | null = null
+  highlightVideoId: string | null = null,
+  isLoading: boolean = false // 👈 13e argument ajouté ici !
 ): string {
   const t = translations[lang]
 
@@ -26,41 +27,46 @@ export function renderAppLayout(
     return valB - valA
   })
 
-  // 1. Liste des Matchs
-  const matchesHtml = filteredMatches.length === 0
-    ? `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.noMatches}</div>`
-    : filteredMatches.map((m) => {
-        const statusKey = `status${m.status}` as keyof typeof t
-        const statusText = t[statusKey] || m.status
-        const homeScore = m.score?.fullTime?.home ?? '-'
-        const awayScore = m.score?.fullTime?.away ?? '-'
+  // 1. Liste des Matchs (Gestion du chargement VS aucun résultat)
+  let matchesHtml = ''
+  if (isLoading) {
+    matchesHtml = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.loading}</div>`
+  } else if (filteredMatches.length === 0) {
+    matchesHtml = `<div style="text-align:center; padding: 3rem; color: var(--text-secondary);">${t.noMatches}</div>`
+  } else {
+    matchesHtml = filteredMatches.map((m) => {
+      const statusKey = `status${m.status}` as keyof typeof t
+      const statusText = t[statusKey] || m.status
+      const homeScore = m.score?.fullTime?.home ?? '-'
+      const awayScore = m.score?.fullTime?.away ?? '-'
 
-        return `
-          <div class="match-card" data-match-id="${m.id}">
-            <div class="match-header">
-              <span>${formatDate(m.utcDate, lang)}</span>
-              <span class="match-status status-${m.status}">${statusText}</span>
-            </div>
-            <div class="teams-container">
-              <div class="team-row">
-                <div class="team-info">
-                  ${m.homeTeam.crest ? `<img src="${m.homeTeam.crest}" class="team-crest" alt="" />` : ''}
-                  <span class="team-name">${m.homeTeam.name}</span>
-                </div>
-                <span class="team-score">${homeScore}</span>
-              </div>
-              <div class="team-row">
-                <div class="team-info">
-                  ${m.awayTeam.crest ? `<img src="${m.awayTeam.crest}" class="team-crest" alt="" />` : ''}
-                  <span class="team-name">${m.awayTeam.name}</span>
-                </div>
-                <span class="team-score">${awayScore}</span>
-              </div>
-            </div>
-            ${m.status === 'FINISHED' ? `<div class="view-stats-hint">${t.clickStatsHint}</div>` : ''}
+      return `
+        <div class="match-card" data-match-id="${m.id}">
+          <div class="match-header">
+            <span>${formatDate(m.utcDate, lang)}</span>
+            <span class="match-status status-${m.status}">${statusText}</span>
           </div>
-        `
-      }).join('')
+          <div class="teams-container">
+            <div class="team-row">
+              <div class="team-info">
+                ${m.homeTeam.crest ? `<img src="${m.homeTeam.crest}" class="team-crest" alt="" />` : ''}
+                <span class="team-name">${m.homeTeam.name}</span>
+              </div>
+              <span class="team-score">${homeScore}</span>
+            </div>
+            <div class="team-row">
+              <div class="team-info">
+                ${m.awayTeam.crest ? `<img src="${m.awayTeam.crest}" class="team-crest" alt="" />` : ''}
+                <span class="team-name">${m.awayTeam.name}</span>
+              </div>
+              <span class="team-score">${awayScore}</span>
+            </div>
+          </div>
+          ${m.status === 'FINISHED' ? `<div class="view-stats-hint">${t.clickStatsHint}</div>` : ''}
+        </div>
+      `
+    }).join('')
+  }
 
   // 2. Tableau du Classement
   const standingsHtml = standingsTable.length === 0
@@ -170,8 +176,7 @@ export function renderAppLayout(
 
         ${selectedMatch.status === 'FINISHED' ? `
           <div class="video-container" style="margin-top: 1.5rem; text-align: center;">
-            <h4 style="margin-bottom: 0.75rem; color: var(--text-primary, #ffffff);">🎥 Résumé vidéo du match</h4>
-            ${highlightVideoId ? `
+            <h4 style="margin-bottom: 0.75rem; color: var(--text-primary, #ffffff);">${t.videoHighlightTitle}</h4>${highlightVideoId ? `
               <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
                 <iframe 
                   src="https://www.youtube.com/embed/${highlightVideoId}" 
@@ -180,7 +185,7 @@ export function renderAppLayout(
                   allowfullscreen>
                 </iframe>
               </div>
-            ` : `<p style="color: var(--text-secondary); font-size: 0.85rem; padding: 1rem;">Chargement du résumé vidéo...</p>`}
+            ` : `<p style="color: var(--text-secondary); font-size: 0.85rem; padding: 1rem;">${t.videoLoading}</p>`}
           </div>
         ` : ''}
 
@@ -202,7 +207,7 @@ export function renderAppLayout(
 
   return `
     <header>
-      <h1>Football Tracker <span class="badge-pro">PRO</span></h1>
+      <h1>Football Tracker</h1>
       <select id="league-select">
         ${Object.entries(t.leagues).map(([code, name]) => `
           <option value="${code}" ${code === currentLeague ? 'selected' : ''}>${name}</option>

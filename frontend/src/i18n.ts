@@ -27,11 +27,14 @@ export const translations = {
     thGoals: 'Buts',
     thAssists: 'Passes d.',
 
-    // Modale & Statuts
+    // Modale & Statuts & Vidéo
     modalTitle: 'Détails du match',
     modalMatchDate: 'Date du match',
     modalHalfTimeScore: 'Score Mi-Temps',
     clickStatsHint: '📊 Cliquez pour voir les détails',
+    videoHighlightTitle: '🎥 Résumé vidéo du match',
+    videoLoading: 'Chargement du résumé vidéo...',
+    videoNotFound: 'Aucun résumé disponible pour ce match.',
 
     statusSCHEDULED: 'À venir',
     statusTIMED: 'Programmé',
@@ -76,11 +79,14 @@ export const translations = {
     thGoals: 'Goals',
     thAssists: 'Assists',
 
-    // Modal & Statuses
+    // Modal & Statuses & Video
     modalTitle: 'Match Details',
     modalMatchDate: 'Match Date',
     modalHalfTimeScore: 'Half-Time Score',
     clickStatsHint: '📊 Click to view details',
+    videoHighlightTitle: '🎥 Match Video Highlights',
+    videoLoading: 'Loading video highlights...',
+    videoNotFound: 'No highlights available for this match.',
 
     statusSCHEDULED: 'Upcoming',
     statusTIMED: 'Scheduled',
