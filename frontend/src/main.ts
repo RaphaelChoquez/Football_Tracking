@@ -24,9 +24,15 @@ const MATCHES_API_URL = 'http://localhost:5164/api/matches'
 const STANDINGS_API_URL = 'http://localhost:5164/api/standings'
 const SCORERS_API_URL = 'http://localhost:5164/api/players/scorers'
 
-async function loadMatches(): Promise<void> {
-  isLoading = true
-  updateUI()
+// Intervalle de rafraîchissement automatique (30 secondes)
+const POLLING_INTERVAL_MS = 30000
+let pollingIntervalId: ReturnType<typeof setInterval> | null = null
+
+async function loadMatches(showLoading: boolean = true): Promise<void> {
+  if (showLoading) {
+    isLoading = true
+    updateUI()
+  }
   try {
     const url = new URL(MATCHES_API_URL)
     url.searchParams.set('code', currentLeague)
@@ -38,7 +44,7 @@ async function loadMatches(): Promise<void> {
   } catch (err) {
     console.error('Erreur chargement matchs:', err)
   } finally {
-    isLoading = false
+    if (showLoading) isLoading = false
     updateUI()
   }
 }
@@ -78,6 +84,25 @@ async function loadTopScorers(): Promise<void> {
   } finally {
     isLoading = false
     updateUI()
+  }
+}
+
+function startPolling(): void {
+  if (pollingIntervalId !== null) return // déjà en cours
+
+  pollingIntervalId = setInterval(() => {
+    // On ne rafraîchit que si on regarde l'onglet "Matchs"
+    // et qu'aucune modale n'est ouverte (pour ne pas perturber l'utilisateur)
+    if (activeTab === 'matches' && !selectedMatch) {
+      loadMatches(false) // false = pas de spinner, rafraîchissement silencieux
+    }
+  }, POLLING_INTERVAL_MS)
+}
+
+function stopPolling(): void {
+  if (pollingIntervalId !== null) {
+    clearInterval(pollingIntervalId)
+    pollingIntervalId = null
   }
 }
 
@@ -123,6 +148,7 @@ function updateUI(): void {
 function attachEvents(): void {
   // Choix de la ligue
   document.getElementById('league-select')?.addEventListener('change', (e) => {
+    stopPolling() // évite qu'un rafraîchissement silencieux arrive avec l'ancienne ligue
     currentLeague = (e.target as HTMLSelectElement).value
 
     allMatches = []
@@ -137,6 +163,8 @@ function attachEvents(): void {
     if (activeTab === 'matches') loadMatches()
     if (activeTab === 'standings') loadStandings()
     if (activeTab === 'players') loadTopScorers()
+
+    startPolling()
   })
 
   // Navigation par onglets
@@ -252,5 +280,15 @@ function attachEvents(): void {
   })
 }
 
+// Pause le polling quand l'onglet du navigateur n'est pas visible (économise les requêtes)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling()
+  } else {
+    startPolling()
+  }
+})
+
 // Lancement initial
 loadMatches()
+startPolling()
