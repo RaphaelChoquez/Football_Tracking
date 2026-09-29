@@ -20,9 +20,11 @@ let standingsTable: TablePosition[] = []
 let topScorers: Scorer[] = []
 let isLoading = true
 
-const MATCHES_API_URL = 'http://localhost:5164/api/matches'
-const STANDINGS_API_URL = 'http://localhost:5164/api/standings'
-const SCORERS_API_URL = 'http://localhost:5164/api/players/scorers'
+// URL du backend : variable d'environnement en prod, localhost par défaut en dev
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5164'
+const MATCHES_API_URL = `${API_BASE_URL}/api/matches`
+const STANDINGS_API_URL = `${API_BASE_URL}/api/standings`
+const SCORERS_API_URL = `${API_BASE_URL}/api/players/scorers`
 
 // Intervalle de rafraîchissement automatique (30 secondes)
 const POLLING_INTERVAL_MS = 30000

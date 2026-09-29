@@ -18,13 +18,29 @@ builder.Services.AddHttpClient("FootballData", client =>
     }
 });
 
+// 3bis. Configurer le HttpClient "YouTube" pour le HighlightsController
+//       (la clé est lue ici côté serveur, jamais envoyée au navigateur)
+builder.Services.AddHttpClient("YouTube");
+
 // 4. Configuration de CORS pour le frontend Vite
+//    On autorise le dev local ET le frontend déployé (Vercel/Netlify/etc.)
+//    L'URL de prod vient d'une variable d'environnement pour ne pas la hardcoder.
+var frontendProdUrl = builder.Configuration["Frontend:Url"]; // ex: https://ton-projet.vercel.app
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:5173")
+    {
+        var origins = new List<string> { "http://localhost:5173" };
+        if (!string.IsNullOrEmpty(frontendProdUrl))
+        {
+            origins.Add(frontendProdUrl);
+        }
+
+        policy.WithOrigins(origins.ToArray())
               .AllowAnyMethod()
-              .AllowAnyHeader());
+              .AllowAnyHeader();
+    });
 });
 
 var app = builder.Build();
@@ -38,7 +54,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 
-// 5. Connecter les contrôleurs (StandingsController, MatchesController...)
+// 5. Connecter les contrôleurs (StandingsController, MatchesController, HighlightsController...)
 app.MapControllers();
 
 app.Run();
