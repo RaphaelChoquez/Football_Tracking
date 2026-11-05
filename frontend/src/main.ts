@@ -2,7 +2,6 @@ import { renderAppLayout } from './render'
 import './style.css'
 import type { Match, TablePosition, Scorer } from './types'
 import type { Language } from './i18n'
-import { translations } from './i18n'
 import { fetchMatchHighlight } from './youtube'
 
 // Variables d'état
